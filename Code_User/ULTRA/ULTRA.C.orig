@@ -1,0 +1,123 @@
+#include "ULTRA.h"
+
+//³¬Éù²¨³õÊ¼»¯º¯Êı
+void UlTRA_Init(void)
+{
+
+//	A11:HCSR04_TRIG; A8:ECHO
+    GPIO_InitTypeDef GPIO_InitStructure;
+    RCC_APB2PeriphClockCmd(HCSR04_CLK, ENABLE);
+     
+//IO
+    GPIO_InitStructure.GPIO_Pin   = GPIO_Pin_11;//A11:HCSR04_TRIG;       //??????
+    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+    GPIO_InitStructure.GPIO_Mode  = GPIO_Mode_Out_PP;//ÍÆÍìÊä³ö
+    GPIO_Init(GPIOA, &GPIO_InitStructure);
+    GPIO_ResetBits(GPIOA,GPIO_Pin_11);
+     
+    GPIO_InitStructure.GPIO_Pin  = GPIO_Pin_8;
+     
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;//ÊäÈë¸¡¿Õ
+    GPIO_Init(GPIOA, &GPIO_InitStructure);
+     
+    GPIO_ResetBits(GPIOA,GPIO_Pin_8);
+
+
+    TIM_TimeBaseInitTypeDef TIM_TimeBaseStructure;
+        //¶¨Ê±Æ÷
+    RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM6, ENABLE);
+     
+
+//³õÊ¼»¯¶¨Ê±Æ÷
+    TIM_DeInit(TIM6);
+    TIM_TimeBaseStructure.TIM_Period = (1000-1);
+             //×Ô¶¯ÖØÔØÖµ£¬1000£¬ÖÜÆÚÎª1/1Mhz/1000 = 1ms
+    TIM_TimeBaseStructure.TIM_Prescaler =(72-1);
+             //·ÖÆµÏµÊı72£¬ÆµÂÊÎª1Mhz
+    TIM_TimeBaseStructure.TIM_ClockDivision=TIM_CKD_DIV1;//
+    TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
+     
+    TIM_TimeBaseInit(TIM6, &TIM_TimeBaseStructure);
+         
+
+    TIM_ClearFlag(TIM6, TIM_FLAG_Update);
+                    //
+    TIM_ITConfig(TIM6,TIM_IT_Update,ENABLE);
+                 //¿ªÆôÖĞ¶Ï
+
+//ÖĞ¶ÏÓÅÏÈ¼¶ÉèÖÃ
+    NVIC_InitTypeDef NVIC_InitStructure;
+
+    NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2);
+    NVIC_InitStructure.NVIC_IRQChannel = TIM6_IRQn;
+               
+    NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
+     
+    NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
+           
+    NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+               
+    NVIC_Init(&NVIC_InitStructure);
+
+    TIM_Cmd(TIM6,DISABLE);
+}
+
+//¿ªÆô¶¨Ê±Æ÷6
+static void OpenTimerForHc()   
+{
+	TIM_SetCounter(TIM6,0);   
+	msHcCount = 0;
+	TIM_Cmd(TIM6, ENABLE);     
+}
+ 
+//¹Ø±Õ¶¨Ê±Æ÷6
+static void CloseTimerForHc()  
+{
+	TIM_Cmd(TIM6, DISABLE);   
+}
+
+
+//»ñÈ¡³¬Éù²¨Ä£¿é»Ø´«¸ßµçÆ½Ê±¼ä
+u32 GetEchoTimer(void)
+{
+	u32 t = 0;
+	t = msHcCount*1000;                  //?MS???US
+	t += TIM_GetCounter(TIM6);           //????US
+	TIM6->CNT = 0;                       //?TIM6???????????
+	return t;
+}
+//»ñÈ¡¸ßµçÆ½Ê±¼ä
+u32 GetEchoTimer(void)
+{
+	u32 t = 0;
+	t = msHcCount*1000;                  //ms×ªus
+	t += TIM_GetCounter(TIM6);           //µÃµ½×Üus
+	TIM6->CNT = 0;                       //Çå¿Õ¶¨Ê±Æ÷6µÄ¼ÆÊıÆ÷
+	return t;
+}
+
+//»ñÈ¡¾àÀëº¯Êı¡¢×èÈûµ÷ÓÃ£¬ĞèÒªÓÅ»¯
+//µ±·µ»ØÖµÎª-1Ê±±íÊ¾¿ÉÌ½²â¾àÀë³¬ÏŞ,µ±²»ÊÇ-1Ê±´ú±í¾ßÌå·µ»ØµÄ¾àÀë
+int32_t get_distance(void)
+{
+	u32 t = 0;
+	int32 length = 0;
+	GPIO_SetBits(GPIOA,GPIO_Pin_11);
+	delay_us(25);
+	GPIO_ResetBits(GPIOA,GPIO_Pin_11);
+	while(GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_6) == 0);
+	OpenTimerForHc();          
+	while(GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_6) == 1);
+	CloseTimerForHc();         
+	t = GetEchoTimer();   //»ñÈ¡usÊı
+	
+	//¾àÀë³¬ÏŞÅĞ¶Ï
+	if(t>66000){//¹ºÂòÄ£¿é·µ»ØÊ±¼ä³¬¹ı66msËµÃ÷ÒÑ¾­³¬¹ıÌ½²â¾àÀëÁË£¬ËùÒÔ²»ÓÃ¼ì²âÖ±½Ó·µ»Ø
+		return -1;
+	}
+	
+	length = ((float)t*17/1000.0);//cm
+	
+	printf("³¬Éù²¨Ì½²â¾àÀëÎª£º%f",length);
+	return length;
+}
