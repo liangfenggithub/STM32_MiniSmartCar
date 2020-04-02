@@ -185,9 +185,14 @@ int main(void)
             printf("收到的有效命令为：%s\r\n",USART_RX_BUF);
             memset(USART_RX_BUF,0,sizeof(USART_RX_BUF));
             USART_RX_STA = 0;
-
-
         }
+//				
+				
+				if(newLineReceived == 1){
+					printf("收到的有效命令为：%s\r\n",inputString);
+          memset(inputString,0,sizeof(inputString));
+					newLineReceived = 0;
+				}
 
         //RF2G4_Send_Data[12] = (u8)(AV_ADC_Channel1_Sample / 16);
 
@@ -217,7 +222,7 @@ int main(void)
             int l= 0;
 						F_500MS = 0;
 						l = get_distance();
-					  printf("超声波探测距离为：%d cm\r\n",l);
+					  //printf("超声波探测距离为：%d cm\r\n",l);
 	
         }
 

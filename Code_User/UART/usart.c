@@ -126,41 +126,75 @@ void uart_init(u32 bound) {
 
 }
 
+int g_num = 0;
+u8 startBit = 0;
+int g_packnum = 0;
+u8 newLineReceived = 0;
+u8 inputString[80] = {0};
 void USART1_IRQHandler(void)                	//串口1中断服务程序
 {
     u8 Res;
+    u8 uartvalue = 0;
+
 #if SYSTEM_SUPPORT_OS 		//如果SYSTEM_SUPPORT_OS为真，则需要支持OS.
     OSIntEnter();
 #endif
     if(USART_GetITStatus(USART1, USART_IT_RXNE) != RESET)  //接收中断(接收到的数据必须是0x0d 0x0a结尾)
     {
-        Res =USART_ReceiveData(USART1);	//读取接收到的数据
+        uartvalue =USART_ReceiveData(USART1);	//读取接收到的数据
 
 
-        //解析wifi摄像头模块发来的命令，具体格式为： $0,0,0,0,0,0,0#
-        if((USART_RX_STA&0x8000)==0)//接收未完成
+        //uartvalue = USART2->DR;
+        if(uartvalue == '$')
         {
-            if(Res == '$')
-            {
-                USART_RX_STA|=0x4000;
-                USART_RX_STA &= ~0x00001;
-            }
-
-            if(USART_RX_STA&0x4000)//接收到了$
-            {
-                //开始接受有效数据
-                USART_RX_BUF[USART_RX_STA&0X3FFF]=Res ;
-                USART_RX_STA++;
-                if((USART_RX_STA&0x3fff)>(USART_REC_LEN-1)) { //接收数据错误,重新开始接收
-                    USART_RX_STA=0;
-                }
-            }
-            if(Res == '#')
-            {
-                USART_RX_STA|=0x8000;	//接收完成了
-                return;
-            }
+            startBit = 1;
+            g_num = 0;
         }
+        if(startBit == 1)
+        {
+            inputString[g_num] = uartvalue;
+        }
+        if (startBit == 1 && uartvalue == '#')
+        {
+
+            newLineReceived = 1;
+            startBit = 0;
+            g_packnum = g_num;
+
+        }
+        g_num++;
+        if(g_num >= 80)
+        {
+            g_num = 0;
+            startBit = 0;
+            newLineReceived	= 0;
+        }
+
+
+//        //解析wifi摄像头模块发来的命令，具体格式为： $0,0,0,0,0,0,0#
+//        if((USART_RX_STA&0x8000)==0)//接收未完成
+//        {
+//            if(Res == '$')
+//            {
+//                USART_RX_STA|=0x4000;
+//                USART_RX_STA &= ~0x00001;
+//            }
+
+//            if(USART_RX_STA&0x4000)//接收到了$
+//            {
+//                //开始接受有效数据
+//                USART_RX_BUF[USART_RX_STA&0X3FFF]=Res ;
+//                USART_RX_STA++;
+//                if((USART_RX_STA&0x3fff)>(USART_REC_LEN-1)) { //接收数据错误,重新开始接收
+//                    USART_RX_STA=0;
+//                }
+//            }
+//            if(Res == '#')
+//            {
+//                USART_RX_STA|=0x8000;	//接收完成了
+//                return;
+//            }
+//        }
 
     }
 #if SYSTEM_SUPPORT_OS 	//如果SYSTEM_SUPPORT_OS为真，则需要支持OS.
