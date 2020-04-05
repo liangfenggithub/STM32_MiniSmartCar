@@ -561,7 +561,7 @@ void serial_data_parse(void)
 
         }
     }
-    else
+    else if(strchr(inputStringCopy,'#')-strchr(inputStringCopy,'$')>12)
     {
         //$1,0,0,0,0,0,0,0,0,0#    小车前进
 
