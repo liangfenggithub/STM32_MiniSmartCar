@@ -82,9 +82,18 @@ u8 servo_deg = 0;//舵机角度
 
 char inputStringCopy[20] = {0}; //接受字符串备份
 
-
 char dirString[10] = {0}; //方向字符串
 
+u8 left_thr = 0; //左传感器阈值
+
+u8 middle_thr = 0;//中间传感器值
+
+u8 right_thr = 0;//右传感器阈值
+
+
+u8 auto_mode_run_flag = 0;//自动模式下启动标志位
+
+char run_str[16] = {0};//运行指示字符串
 
 
 MENU_STRUCT menu_default;
@@ -177,6 +186,38 @@ void display_task(void)
             OLED_ShowString(0,0,"             ",16);
             OLED_ShowString(0,0,"AUTO_MODE",16);
         }
+				
+				//状态显示
+				if(menu_auto.lock4 == 0) {
+            menu_auto.lock4 = 1;
+            OLED_ShowString(0,6,"             ",16);
+            OLED_ShowString(0,6,run_str,16);
+        }
+				
+				// 100ms调度
+				//--------------------------------
+				if( F_100MS == 1 )
+				{
+						F_100MS = 0;
+
+						// 	oled显示
+						//-----------------------------------------------------
+						OLED_ShowNum(0,2,LEFT_TRA_ADC,3,16);//左传感器值
+						OLED_ShowNum(40,2,CENTER_TRA_ADC,3,16);//中传感器值
+						OLED_ShowNum(80,2,RIGHT_TRA_ADC,3,16);//右传感器值
+					
+						OLED_ShowNum(0,4,left_thr,3,16);//左传感器阈值
+						OLED_ShowNum(80,4,right_thr,3,16);//右传感器阈值
+						//OLED_ShowNum(0,6,BAT_VAL,4,16);
+						//串口输出
+						//-----------------------------------------------------
+						printf("track adc value is : %d -- %d -- %d\r\n",LEFT_TRA_ADC,CENTER_TRA_ADC,RIGHT_TRA_ADC);
+				}
+				
+
+				
+				
+				
         /***********************************自动模式结束********************************************/
         break;
     default:
@@ -216,6 +257,8 @@ void key_task(void)
             printf("进入 自动模式\r\n");
             OLED_Clear(); 				// 清屏
             setMenuReDisplay(&menu_auto);
+						auto_mode_run_flag = 0;//默认为等待设置
+						memcpy(run_str,"wait set...",sizeof("wait set..."));
             keyNum = 0;
             break;
         case 5://中键长按
@@ -270,13 +313,26 @@ void key_task(void)
             keyNum = 0;
             break;
         case 2://中
-
-
+						if(auto_mode_run_flag == 0){
+							//如果是等待运行模式下，按下中键就开始运行
+							printf("开始循迹\r\n");
+							auto_mode_run_flag = 1;
+							memcpy(run_str,"running...",sizeof("running..."));
+						
+						}else{
+							//如果是运行模式下，按下中键就停止运行
+							auto_mode_run_flag = 0;
+							printf("停止循迹\r\n");
+							memcpy(run_str,"wait set...",sizeof("wait set..."));
+						}
+						
+						menu_auto.lock4 = 0;
             keyNum = 0;
             break;
         case 3://下
-
-
+						left_thr = CENTER_TRA_ADC;
+						right_thr = CENTER_TRA_ADC;
+						printf("设置左右阈值为 %d\r\n",CENTER_TRA_ADC);
             keyNum = 0;
             break;
         case 5://中键长按
@@ -379,6 +435,7 @@ void setMenuReDisplay(MENU_STRUCT *menu) {
 //手机遥控模式任务
 void mode_remote_control_task(void)
 {
+	if(mode != PHONE_MODE) return;
     if(newLineReceived == 1) {
         printf("收到的有效命令为：%s\r\n",inputString);
         memcpy(inputStringCopy,inputString,20);//暂时只显示前20个字符
@@ -391,15 +448,41 @@ void mode_remote_control_task(void)
 //循迹避障模式任务
 void mode_track_obstacle_task(void)
 {
-    // 500ms调度 超声波检测
+    // 500ms调度 超声波检测避障
     //--------------------------------
     if(F_500MS == 1) {
         int l= 0;
         F_500MS = 0;
         l = get_distance();
         //printf("超声波探测距离为：%d cm\r\n",l);
-
     }
+		
+		//循迹
+			 if(auto_mode_run_flag == 1)//是否开始循迹？
+				{
+					//压住左线则右转
+					//压住右线则左转
+					//都不压则前进，如果障碍物小于设定距离则停止报警
+					if(LEFT_TRA_ADC>= left_thr){
+						Car_Turn_Left(35);
+						printf("向左转\r\n");
+					}else if(RIGHT_TRA_ADC>= right_thr){
+						Car_Turn_Right(35);
+						printf("向右转\r\n");
+					}else if((LEFT_TRA_ADC <= left_thr)&& (RIGHT_TRA_ADC<= right_thr)){
+						Car_forward(speed_duty);
+						printf("向前走\r\n");
+						//if()
+					}else if((LEFT_TRA_ADC <= left_thr)&& (RIGHT_TRA_ADC<= right_thr)){
+						//Car_forward(speed_duty);
+					}
+					
+				}else{
+					Car_Stop(0);
+					//printf("停止\r\n");
+				}
+
+		
 }
 
 
@@ -483,24 +566,7 @@ int main(void)
         mode_track_obstacle_task();
 
 
-        // 100调度
-        //--------------------------------
-        if( F_100MS == 1 )
-        {
-            F_100MS = 0;
 
-            // 	oled显示
-            //-----------------------------------------------------
-//            OLED_ShowNum(0,0,LEFT_TRA_ADC,3,16);
-//            OLED_ShowNum(0,2,CENTER_TRA_ADC,3,16);
-//            OLED_ShowNum(0,4,RIGHT_TRA_ADC,3,16);
-//            OLED_ShowNum(0,6,BAT_VAL,4,16);
-
-
-            //串口输出
-            //-----------------------------------------------------
-            //printf("track adc value is : %d -- %d -- %d\r\n",LEFT_TRA_ADC,CENTER_TRA_ADC,RIGHT_TRA_ADC);
-        }
 
 
 
