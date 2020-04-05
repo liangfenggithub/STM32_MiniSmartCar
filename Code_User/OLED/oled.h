@@ -40,9 +40,9 @@ void OLED_Display_On(void);	//开显示函数
 void OLED_Display_Off(void);//关显示函数
 void OLED_Init(void);	//OLED初始化函数
 void OLED_Clear(void);  //清屏函数
-void OLED_ShowChar(unsigned char x,unsigned char y,unsigned char chr); //显示字符函数
-void OLED_ShowNum(unsigned char x,unsigned char y,unsigned int num,unsigned char len,unsigned char size2); //在指定的位置，显示一个指定数的长度大小函数
-void OLED_ShowString(unsigned char x,unsigned char y, unsigned char *p);	 //在指定位置开始显示字符串函数
+void OLED_ShowChar(unsigned char x,unsigned char y,unsigned char chr,char size); //显示字符函数
+void OLED_ShowNum(unsigned char x,unsigned char y,unsigned int num,unsigned char len,char size); //在指定的位置，显示一个指定数的长度大小函数
+void OLED_ShowString(unsigned char x,unsigned char y, unsigned char *p,char size);	 //在指定位置开始显示字符串函数
 void OLED_Set_Pos(unsigned char x, unsigned char y);		//画点函数
 void OLED_ShowCHinese(unsigned char x,unsigned char y,unsigned char no); //声明在指定位置显示汉字函数
 void OLED_DrawBMP(unsigned char x0, unsigned char y0,unsigned char x1, unsigned char y1,unsigned char BMP[]); //显示图片函数

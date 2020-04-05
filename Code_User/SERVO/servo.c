@@ -18,7 +18,8 @@ void SERVO_Init(void)		// PA15设为推挽输出
 //角度设置，入参deg是0-180的角度
 void SERVO_Set(u8 deg)//角度设置
 {
-
+	if(deg>= 180)deg = 180;
+	if(deg<= 0)deg = 0;
 	//使用100us定时器，也就是设定的占空比值为 5-25 对应0-180 关系式为 0.1x+5 其中x为0-180
 	servo_duty = (u8)((0.1* (float)deg)+5);
 }

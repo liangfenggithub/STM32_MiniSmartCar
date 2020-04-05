@@ -200,13 +200,13 @@ void OLED_Clear(void)
 					chr：字符
 	@retval			无
  */
-void OLED_ShowChar(unsigned char x,unsigned char y,unsigned char chr)
+void OLED_ShowChar(unsigned char x,unsigned char y,unsigned char chr,char size)
 {      	
 	unsigned char c=0,i=0;	
 		c=chr-' '; //获取字符的偏移量	
 		if(x>Max_Column-1){x=0;y=y+2;} //如果列数超出了范围，就从下2页的第0列开始
 
-		if(SIZE ==16) //字符大小如果为 16 = 8*16
+		if(SIZE ==size) //字符大小如果为 16 = 8*16
 			{
 				OLED_Set_Pos(x,y);	//从x y 开始画点
 				for(i=0;i<8;i++)  //循环8次 占8列
@@ -247,7 +247,7 @@ unsigned int oled_pow(unsigned char m,unsigned char n)
 					size：显示数字的大小
 	@retval			无
  */		  
-void OLED_ShowNum(unsigned char x,unsigned char y,unsigned int num,unsigned char len,unsigned char size)
+void OLED_ShowNum(unsigned char x,unsigned char y,unsigned int num,unsigned char len,char size)
 {         	
 	unsigned char t,temp;  //定义变量
 	unsigned char enshow=0;		//定义变量
@@ -259,11 +259,11 @@ void OLED_ShowNum(unsigned char x,unsigned char y,unsigned int num,unsigned char
 		{
 			if(temp==0) //如果该数为0 
 			{
-				OLED_ShowChar(x+(size/2)*t,y,' ');//显示 0 ；x+(size2/2)*t根据字体大小偏移的列数（8）
+				OLED_ShowChar(x+(size/2)*t,y,' ',size);//显示 0 ；x+(size2/2)*t根据字体大小偏移的列数（8）
 				continue; //跳过剩下语句，继续重复循环（避免重复显示）
 			}else enshow=1; 
 		}
-	 	OLED_ShowChar(x+(size/2)*t,y,temp+'0'); //显示一个位；x+(size2/2)*t根据字体大小偏移的列数（8）
+	 	OLED_ShowChar(x+(size/2)*t,y,temp+'0',size); //显示一个位；x+(size2/2)*t根据字体大小偏移的列数（8）
 	}
 } 
 
@@ -275,15 +275,23 @@ void OLED_ShowNum(unsigned char x,unsigned char y,unsigned int num,unsigned char
 					*chr：第一个字符首地址
 	@retval			无
  */
-void OLED_ShowString(unsigned char x,unsigned char y,unsigned char *chr)
+void OLED_ShowString(unsigned char x,unsigned char y,unsigned char *chr,char size)
 {
 	unsigned char j=0; //定义变量
 
 	while (chr[j]!='\0') //如果不是最后一个字符
 	{		
-		OLED_ShowChar(x,y,chr[j]); //显示字符
+		OLED_ShowChar(x,y,chr[j],size); //显示字符
 		x+=8; //列数加8 ，一个字符的列数占8
-		if(x>=128){x=0;y+=2;} //如果x大于等于128，切换页，从该页的第一列显示
+		if(x>=128){
+			x=0;
+			if(size == 16){
+				y+=2;
+			}else{
+			y+=1;
+			}
+			
+		} //如果x大于等于128，切换页，从该页的第一列显示
 		j++; //下一个字符
 	}
 }
