@@ -161,13 +161,19 @@ void SysTick_Handler(void)
 #include "led.h"
 #include "beep.h"
 #include "servo.h"
+#include "exti.h"
 extern u16 C_TIM2_IT_Update ;	// TIM3的定时计次
 
 extern u8  One_Ms_Timing ;		// 1ms全局时基
 
 extern u8 F_100MS;			// 
 
-extern u8 F_500MS;
+extern u8 F_110MS;
+
+extern u8 F_1S;
+
+extern int left_real_speed;
+extern int right_real_speed;
 
 // 定时器3中断服务程序	 
 // 1ms中断一次
@@ -195,10 +201,23 @@ void TIM3_IRQHandler(void)
 		}
 		// (500ms)
 		//---------------------------------------------------
-		if(C_TIM2_IT_Update>= 500)
+		if(C_TIM2_IT_Update % 110 == 0)
+		{
+			F_110MS = 1;
+		}
+		
+		
+	  if(C_TIM2_IT_Update >= 1000)
 		{
 			C_TIM2_IT_Update = 0 ;
-			F_500MS = 1;
+			//1秒时间到，开始计算左右轮频率
+			 left_real_speed = left_pulse_cnt * 44 / 120;//mm 单个轮胎转一圈有12个脉冲，轮胎周长为44毫米，利用1秒钟脉冲计算得到实际转速
+			 right_real_speed = right_pulse_cnt * 44 / 120;
+				
+			left_pulse_cnt = 0;//清零脉冲计数器
+			right_pulse_cnt = 0;
+			
+			F_1S = 1;
 		}
 		
 		//---------------------------------------------------

@@ -336,7 +336,7 @@
               <MiscControls></MiscControls>
               <Define>STM32F10X_MD,USE_STDPERIPH_DRIVER</Define>
               <Undefine></Undefine>
-              <IncludePath>..\Core;..\System;..\FWLib\inc;..\Code_User\@bit_band;..\Code_User\@delay;..\Code_User\LED;..\Code_User\KEY;..\Code_User\OLED;..\Code_User\TIMER;..\Code_User\ADC;..\Code_User\SPI;..\Code_User\RF2G4;..\Code_User\DMA;..\Code_User\BEEP;..\Code_User\UART;..\Code_User\PWM;..\Code_User\MotorDrive;..\Code_User\YUYIN;..\Code_User\ULTRA;..\Code_User\SERVO</IncludePath>
+              <IncludePath>..\Core;..\System;..\FWLib\inc;..\Code_User\@bit_band;..\Code_User\@delay;..\Code_User\LED;..\Code_User\KEY;..\Code_User\OLED;..\Code_User\TIMER;..\Code_User\ADC;..\Code_User\SPI;..\Code_User\RF2G4;..\Code_User\DMA;..\Code_User\BEEP;..\Code_User\UART;..\Code_User\PWM;..\Code_User\MotorDrive;..\Code_User\YUYIN;..\Code_User\ULTRA;..\Code_User\SERVO;..\Code_User\EXTI</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -459,6 +459,11 @@
               <FileName>servo.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\Code_User\SERVO\servo.c</FilePath>
+            </File>
+            <File>
+              <FileName>exti.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Code_User\EXTI\exti.c</FilePath>
             </File>
           </Files>
         </Group>

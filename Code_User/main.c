@@ -74,7 +74,9 @@ u8  One_Ms_Timing = 0 ;		// 1ms全局时基
 
 u8 F_100MS = 0 ;			// 100ms标志位
 
-u8 F_500MS = 0;// 500ms标志位
+u8 F_110MS = 0;// 500ms标志位
+
+u16 F_1S = 0;// 1s标志位
 
 u8 speed_duty = 80;    //pwm的占空比
 
@@ -90,11 +92,15 @@ u8 middle_thr = 0;//中间传感器值
 
 u8 right_thr = 0;//右传感器阈值
 
-
 u8 auto_mode_run_flag = 0;//自动模式下启动标志位
 
 char run_str[16] = {0};//运行指示字符串
 
+u16 left_real_speed = 0;//左侧实际速度，厘米每秒
+
+u16 right_real_speed = 0;//右侧实际速度，厘米每秒
+
+u16 all_distance = 0;//总里程 厘米
 
 MENU_STRUCT menu_default;
 MENU_STRUCT menu_phone;
@@ -138,8 +144,10 @@ void back_task(void)
 //------------------------------------------------------------------
 
 //显示处理任务
+int all_length = 0;
 void display_task(void)
 {
+		char str[20] = {0};
     switch(mode) {
     case DEFAULT_MODE:
         /***********************************待机模式开始********************************************/
@@ -175,7 +183,31 @@ void display_task(void)
             memset(dirString,0,sizeof(dirString));
         }
 
-
+				
+				if( F_1S == 1 )
+        {
+            F_1S = 0;
+						//计算总里程
+						all_length = all_length+ ((left_real_speed+right_real_speed)/2);//总距离以左右侧速度平均值为基准
+					
+						printf("左侧速度为 %d 每秒\r\n",left_real_speed);
+						printf("右侧速度为 %d 每秒\r\n",right_real_speed);	
+						printf("总里程为 %d \r\n",all_length);
+						
+						//屏幕显示
+						memset(str,0,sizeof(str));
+						sprintf(str,"total: %d cm",all_length);
+						OLED_ShowString(0,6,"                ",8);
+            OLED_ShowString(0,6,str,8);
+					
+					
+						//清零时速
+						left_real_speed = 0;
+						right_real_speed = 0;
+						
+					
+				}
+				
         /***********************************遥控模式结束********************************************/
         break;
     case AUTO_MODE:
@@ -186,38 +218,38 @@ void display_task(void)
             OLED_ShowString(0,0,"             ",16);
             OLED_ShowString(0,0,"AUTO_MODE",16);
         }
-				
-				//状态显示
-				if(menu_auto.lock4 == 0) {
+
+        //状态显示
+        if(menu_auto.lock4 == 0) {
             menu_auto.lock4 = 1;
             OLED_ShowString(0,6,"             ",16);
             OLED_ShowString(0,6,run_str,16);
         }
-				
-				// 100ms调度
-				//--------------------------------
-				if( F_100MS == 1 )
-				{
-						F_100MS = 0;
 
-						// 	oled显示
-						//-----------------------------------------------------
-						OLED_ShowNum(0,2,LEFT_TRA_ADC,3,16);//左传感器值
-						OLED_ShowNum(40,2,CENTER_TRA_ADC,3,16);//中传感器值
-						OLED_ShowNum(80,2,RIGHT_TRA_ADC,3,16);//右传感器值
-					
-						OLED_ShowNum(0,4,left_thr,3,16);//左传感器阈值
-						OLED_ShowNum(80,4,right_thr,3,16);//右传感器阈值
-						//OLED_ShowNum(0,6,BAT_VAL,4,16);
-						//串口输出
-						//-----------------------------------------------------
-						printf("track adc value is : %d -- %d -- %d\r\n",LEFT_TRA_ADC,CENTER_TRA_ADC,RIGHT_TRA_ADC);
-				}
-				
+        // 100ms调度
+        //--------------------------------
+        if( F_100MS == 1 )
+        {
+            F_100MS = 0;
 
-				
-				
-				
+            // 	oled显示
+            //-----------------------------------------------------
+            OLED_ShowNum(0,2,LEFT_TRA_ADC,3,16);//左传感器值
+            OLED_ShowNum(40,2,CENTER_TRA_ADC,3,16);//中传感器值
+            OLED_ShowNum(80,2,RIGHT_TRA_ADC,3,16);//右传感器值
+
+            OLED_ShowNum(0,4,left_thr,3,16);//左传感器阈值
+            OLED_ShowNum(80,4,right_thr,3,16);//右传感器阈值
+            //OLED_ShowNum(0,6,BAT_VAL,4,16);
+            //串口输出
+            //-----------------------------------------------------
+            printf("track adc value is : %d -- %d -- %d\r\n",LEFT_TRA_ADC,CENTER_TRA_ADC,RIGHT_TRA_ADC);
+        }
+
+
+
+
+
         /***********************************自动模式结束********************************************/
         break;
     default:
@@ -257,8 +289,8 @@ void key_task(void)
             printf("进入 自动模式\r\n");
             OLED_Clear(); 				// 清屏
             setMenuReDisplay(&menu_auto);
-						auto_mode_run_flag = 0;//默认为等待设置
-						memcpy(run_str,"wait set...",sizeof("wait set..."));
+            auto_mode_run_flag = 0;//默认为等待设置
+            memcpy(run_str,"wait set...",sizeof("wait set..."));
             keyNum = 0;
             break;
         case 5://中键长按
@@ -297,6 +329,8 @@ void key_task(void)
             printf("进入 待机模式\r\n");
             setMenuReDisplay(&menu_default);
             OLED_Clear(); 				// 清屏
+						YUYIN_OFF;
+                Car_Stop(0);
             keyNum = 0;
             break;
         default:
@@ -313,26 +347,26 @@ void key_task(void)
             keyNum = 0;
             break;
         case 2://中
-						if(auto_mode_run_flag == 0){
-							//如果是等待运行模式下，按下中键就开始运行
-							printf("开始循迹\r\n");
-							auto_mode_run_flag = 1;
-							memcpy(run_str,"running...",sizeof("running..."));
-						
-						}else{
-							//如果是运行模式下，按下中键就停止运行
-							auto_mode_run_flag = 0;
-							printf("停止循迹\r\n");
-							memcpy(run_str,"wait set...",sizeof("wait set..."));
-						}
-						
-						menu_auto.lock4 = 0;
+            if(auto_mode_run_flag == 0) {
+                //如果是等待运行模式下，按下中键就开始运行
+                printf("开始循迹\r\n");
+                auto_mode_run_flag = 1;
+                memcpy(run_str,"running...",sizeof("running..."));
+
+            } else {
+                //如果是运行模式下，按下中键就停止运行
+                auto_mode_run_flag = 0;
+                printf("停止循迹\r\n");
+                memcpy(run_str,"wait set...",sizeof("wait set..."));
+            }
+
+            menu_auto.lock4 = 0;
             keyNum = 0;
             break;
         case 3://下
-						left_thr = CENTER_TRA_ADC;
-						right_thr = CENTER_TRA_ADC;
-						printf("设置左右阈值为 %d\r\n",CENTER_TRA_ADC);
+            left_thr = CENTER_TRA_ADC;
+            right_thr = CENTER_TRA_ADC;
+            printf("设置左右阈值为 %d\r\n",CENTER_TRA_ADC);
             keyNum = 0;
             break;
         case 5://中键长按
@@ -340,6 +374,8 @@ void key_task(void)
             printf("进入 待机模式\r\n");
             setMenuReDisplay(&menu_default);
             OLED_Clear(); 				// 清屏
+				YUYIN_OFF;
+                Car_Stop(0);
             keyNum = 0;
             break;
         default:
@@ -351,76 +387,6 @@ void key_task(void)
         break;
     }
 
-
-
-
-//    //上
-//    switch(keyNum) {
-//    case 1://上
-//        LED = !LED;
-//        printf("上键按下\r\n");
-
-////        //舵机测试
-////        if(servo_deg<180) {
-////            servo_deg+=5;
-////        } else {
-////            servo_deg = 180;
-////        }
-////        printf("舵机角度 %d -- 高电平时间 %d\r\n",servo_deg,servo_duty);
-////        SERVO_Set(servo_deg);
-//        keyNum = 0;
-//        break;
-//    case 2://中
-//        printf("中键按下\r\n");
-//        switch(mode) {
-//        case DEFAULT_MODE:
-
-//            break;
-//        case PHONE_MODE:
-//											/***********************************遥控模式开始********************************************/
-//						mode = PHONE_MODE;
-//            printf("进入 遥控模式\r\n");
-//				/***********************************遥控模式结束********************************************/
-//						/***********************************遥控模式开始********************************************/
-//				/***********************************遥控模式结束********************************************/
-//            break;
-//        case AUTO_MODE:
-//            break;
-//        default:
-//            break;
-//        }
-////        F_KEY_Down[2] = 0;
-////        Car_Turn_Left(50);
-////        YUYIN_ON(2);
-//        keyNum = 0;
-//        break;
-//    case 3://下
-//        printf("下键按下\r\n");
-//        switch(mode) {
-//        case DEFAULT_MODE:
-//            mode = PHONE_MODE;
-//            printf("循迹避障 模式\r\n");
-//            break;
-//        case PHONE_MODE:
-
-//            break;
-//        case AUTO_MODE:
-//            break;
-//        default:
-//            break;
-//        }
-////        if(servo_deg>5) {
-////            servo_deg-=5;
-////        } else {
-////            servo_deg = 5;
-////        }
-////        printf("舵机角度 %d -- 高电平时间 %d\r\n",servo_deg,servo_duty);
-////        SERVO_Set(servo_deg);
-//        keyNum = 0;
-//        break;
-//    default:
-//        break;
-//    }
 
 }
 //设置菜单重刷屏幕标志
@@ -435,7 +401,7 @@ void setMenuReDisplay(MENU_STRUCT *menu) {
 //手机遥控模式任务
 void mode_remote_control_task(void)
 {
-	if(mode != PHONE_MODE) return;
+    if(mode != PHONE_MODE) return;
     if(newLineReceived == 1) {
         printf("收到的有效命令为：%s\r\n",inputString);
         memcpy(inputStringCopy,inputString,20);//暂时只显示前20个字符
@@ -446,43 +412,59 @@ void mode_remote_control_task(void)
     }
 }
 //循迹避障模式任务
+int l= 0;
 void mode_track_obstacle_task(void)
 {
+    if(mode != AUTO_MODE) return;
     // 500ms调度 超声波检测避障
     //--------------------------------
-    if(F_500MS == 1) {
-        int l= 0;
-        F_500MS = 0;
-        l = get_distance();
-        //printf("超声波探测距离为：%d cm\r\n",l);
-    }
-		
-		//循迹
-			 if(auto_mode_run_flag == 1)//是否开始循迹？
-				{
-					//压住左线则右转
-					//压住右线则左转
-					//都不压则前进，如果障碍物小于设定距离则停止报警
-					if(LEFT_TRA_ADC>= left_thr){
-						Car_Turn_Left(35);
-						printf("向左转\r\n");
-					}else if(RIGHT_TRA_ADC>= right_thr){
-						Car_Turn_Right(35);
-						printf("向右转\r\n");
-					}else if((LEFT_TRA_ADC <= left_thr)&& (RIGHT_TRA_ADC<= right_thr)){
-						Car_forward(speed_duty);
-						printf("向前走\r\n");
-						//if()
-					}else if((LEFT_TRA_ADC <= left_thr)&& (RIGHT_TRA_ADC<= right_thr)){
-						//Car_forward(speed_duty);
-					}
-					
-				}else{
-					Car_Stop(0);
-					//printf("停止\r\n");
-				}
+    if(F_110MS == 1) {
 
-		
+        F_110MS = 0;
+        l = get_distance();
+        if(l<5) l = 5;//超声波测量最小距离
+        if(l>60) l= 60;//超声波测量最远距离
+        printf("超声波探测距离为：%d cm\r\n",l);
+    }
+
+    //循迹
+    if(auto_mode_run_flag == 1)//是否开始循迹？
+    {
+        //压住左线则右转
+        //压住右线则左转
+        //都不压则前进，如果障碍物小于设定距离则停止报警
+        if(LEFT_TRA_ADC>= left_thr) {
+            Car_Turn_Left(35);
+            printf("向左转\r\n");
+        } else if(RIGHT_TRA_ADC>= right_thr) {
+            Car_Turn_Right(35);
+            printf("向右转\r\n");
+        } else if((LEFT_TRA_ADC <= left_thr)&& (RIGHT_TRA_ADC<= right_thr)) {
+            printf("在正中心\r\n");
+            if(l >= 7)//
+            {
+                Car_forward(speed_duty);
+                YUYIN_OFF();
+                printf("向前走\r\n");
+            } else {
+                printf("小于7厘米，开始报警\r\n");
+                YUYIN_ON(2);
+                Car_Stop(0);
+                printf("停止\r\n");
+
+            }
+        } else if((LEFT_TRA_ADC <= left_thr)&& (RIGHT_TRA_ADC<= right_thr)) {
+            //Car_forward(speed_duty);
+            Car_Stop(0);
+            printf("停止\r\n");
+        }
+
+    } else {
+        Car_Stop(0);
+        //printf("停止\r\n");
+    }
+
+
 }
 
 
@@ -530,6 +512,7 @@ int main(void)
 
     SERVO_Init();          //舵机初始化
 
+		EXTIX_Init();         //外部中断初始化 用于计算里程
 
 
 
@@ -537,17 +520,17 @@ int main(void)
     //-----------------------------------------
     OLED_Init();				// 初始化OLED
     OLED_Clear(); 				// 清屏
+    OLED_ShowString(0, 0, "Smart Car",16);
+    OLED_ShowString(0, 2, "   by TangHao",16);
 
-
-//    delay_ms(1000);
-//    delay_ms(1000);
-//    delay_ms(1000);
-//    delay_ms(1000);
+    delay_ms(1000);
+    delay_ms(1000);
+    delay_ms(1000);
+    delay_ms(1500);
     YUYIN_OFF();
-//    OLED_ShowString(0, 0, "Smart Car");
-//    OLED_ShowString(0, 2, "   by TangHao");
+    OLED_Clear(); 				// 清屏
     //-----------------------------------------
-		 //Car_forward(80);
+    //Car_forward(80);
     while(1)
     {
         //后台任务
